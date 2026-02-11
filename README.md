@@ -8,8 +8,8 @@ The [Bunny Mural Puzzle Helper](https://philippgitpush.github.io/bunnymuralhelpe
 
 ## Planned
 
-- **Position Storage:** Thinking of storing the position data for the tiles in the users session cookie, it should do the trick for now.
-- **Stitching Assistants:** As suggested by @mvp__ from the BIGMODE Official Discord Server: Adding coloring for the position indicators to show correctly / wrongly placed tiles / pieces.
+- [x] **Position Storage:** Thinking of storing the position data for the tiles in the users session cookie, it should do the trick for now.
+- [ ] **Stitching Assistants:** As suggested by @mvp__ from the BIGMODE Official Discord Server: Adding coloring for the position indicators to show correctly / wrongly placed tiles / pieces.
 
 ## License
 

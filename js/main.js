@@ -10,6 +10,10 @@ let dummyPiece = null;
 let lastMove = null;
 let solved = false;
 
+// id of field: id of piece
+let mapState = {}
+const storageKey = "bunnymural-solving-data"
+
 function pointerDown(e) {
   if (draggedPiece) return; // return if already mids dragging a piece
 
@@ -27,6 +31,8 @@ function pointerUp(e) {
   const hoveredSlot = document.elementFromPoint(x, y).closest('.slot');
   if (!solved && hoveredSlot) hoveredSlot.children.length === 0 ? placePiece(hoveredSlot) : swapPiece(hoveredSlot);
   
+  saveMapState();
+
   // cleanup
   removeCursor();
   removeHovering();
@@ -53,19 +59,43 @@ function pointerMove(e) {
 // place / swap behaviour
 
 function placePiece(slot) {
+  const parentOfDraggedPiece = draggedPiece.parentElement;
+
   slot.appendChild(draggedPiece);
+
+  if (slot.dataset.id !== undefined) {
+    mapState[slot.dataset.id] = draggedPiece.dataset.id;
+  }
+  delete mapState[parentOfDraggedPiece.dataset.id];
+
   playSound(sound_place);
 }
 
-function swapPiece(slot) {
-  const pieceInSlot = slot.children[0];
+function swapPiece(targetSlot) {
+  const targetPiece = targetSlot.children[0];
   const parentOfDraggedPiece = draggedPiece.parentElement;
-  const parentOfPieceInSlot = pieceInSlot.parentElement;
-  
-  parentOfDraggedPiece.insertBefore(pieceInSlot, draggedPiece);
-  parentOfPieceInSlot.appendChild(draggedPiece);
-  
-  if (pieceInSlot != draggedPiece) playSound(sound_swap);
+
+  parentOfDraggedPiece.insertBefore(targetPiece, draggedPiece);
+  targetSlot.appendChild(draggedPiece);
+
+  // swapping values in mapState
+  let isValidTarget = targetSlot.dataset.id !== undefined
+  let isValidDragged = parentOfDraggedPiece.dataset.id !== undefined
+  if (isValidTarget && isValidDragged) {
+    // swapping on map
+    mapState[parentOfDraggedPiece.dataset.id] = targetPiece.dataset.id;
+    mapState[targetSlot.dataset.id] = draggedPiece.dataset.id;
+  } else if (isValidTarget) {
+    // swapping from box with pieces to map
+    mapState[targetSlot.dataset.id] = draggedPiece.dataset.id;
+  } else if (isValidDragged) {
+    // swapping from map to box with pieces
+    mapState[parentOfDraggedPiece.dataset.id] = targetPiece.dataset.id;
+  } else {
+    // swapping in box with pieces, ignoring
+  }
+
+  if (targetPiece != draggedPiece) playSound(sound_swap);
 }
 
 // cursor behaviour + dragging & hovering
@@ -214,7 +244,7 @@ function checkSolved(last) {
   for (let slot in solutionMap) {  
     const piece = solutionMap[slot];
 
-    let target = document.querySelector('.slot[data-id="' + slot + '"]');
+    let target = getSlot(slot);
     if (!target.firstElementChild || target.firstElementChild.dataset.id != piece) currentSolution = false;
   }
 
@@ -253,7 +283,7 @@ function filterAlreadyHighlighted(slots) {
   let arr = [];
 
   if (slots.length) slots.forEach(function(e) {
-    const target = document.querySelector('.slot[data-id="' + e + '"]');
+    const target = getSlot(e);
     if (!target.classList.contains('highlight')) arr.push(e);
   })
 
@@ -262,7 +292,7 @@ function filterAlreadyHighlighted(slots) {
 
 function setHighlighted(slots) {
   slots.forEach(function(e) {
-    const target = document.querySelector('.slot[data-id="' + e + '"]');
+    const target = getSlot(e);
     target.classList.add('highlight');
   })
 }
@@ -309,6 +339,36 @@ function clearEventsAndStyles() {
   document.body.classList.remove('dim-pieces');
 }
 
+// storage
+
+function saveMapState() {
+  window.localStorage.setItem(storageKey, JSON.stringify(mapState))
+}
+
+function loadMapState() {
+  let data = window.localStorage.getItem(storageKey);
+  if (data !== null) {
+    mapState = JSON.parse(data);
+  }
+  restoreMapElements()
+}
+
+function restoreMapElements() {
+  for (let [mapId, pieceId] of Object.entries(mapState)) {
+    getSlot(mapId).append(getPiece(pieceId))
+  }
+}
+
+// selectors
+
+function getSlot(id) {
+  return document.querySelector('.slot[data-id="' + id + '"]')
+}
+
+function getPiece(id) {
+  return document.querySelector('.piece[data-id="' + id + '"]')
+}
+
 // umami functions
 
 let timeSpent = 0;
@@ -318,13 +378,15 @@ setInterval(() => { timeSpent++ }, 1000);
 
 function populateBoard(use_solution_map) {
   for (let i = 0; i < pieces.length; i++) {
-    let slot = document.querySelector('.slot[data-id="' + (i + 1) + '"]');
+    let slot = getSlot(i + 1);
     draggedPiece = pieces[i];
 
-    if (use_solution_map) draggedPiece = document.querySelector('.piece[data-id="' + solutionMap[i + 1] + '"]');
+    if (use_solution_map) draggedPiece = getPiece(solutionMap[i + 1]);
     
     placePiece(slot);
   }
 
   draggedPiece = null;
 }
+
+loadMapState();
